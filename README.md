@@ -1,16 +1,13 @@
 # Cloud-Native DevOps Microservices
 
-A cloud-native microservices application built with Python and Flask. This project demonstrates a simple microservices architecture where each service runs independently and communicates via REST APIs.
+A simple microservices application built with Python and Flask. The application is divided into four independent services, each running on its own port and providing REST APIs.
 
 ---
 
 ## Architecture
 
-```
+```text
                  Client
-                   │
-                   ▼
-              API Gateway
                    │
        ┌───────────┼───────────┐
        ▼           ▼           ▼
@@ -24,26 +21,27 @@ A cloud-native microservices application built with Python and Flask. This proje
 
 ## Services
 
-| Service           | Port | Description                  |
-|-------------------|------|------------------------------|
-| user-service      | 5001 | Manages user data            |
-| product-service   | 5002 | Manages product catalog      |
-| order-service     | 5003 | Manages customer orders      |
-| payment-service   | 5004 | Manages payment processing   |
+| Service         | Port | Responsibility          |
+| --------------- | ---: | ----------------------- |
+| user-service    | 5001 | Manages user data       |
+| product-service | 5002 | Manages product data    |
+| order-service   | 5003 | Manages customer orders |
+| payment-service | 5004 | Handles payment data    |
+
+Each service is an independent Flask application.
 
 ---
 
 ## Prerequisites
 
-- Python 3.8+
-- pip
-- Docker (for containerized deployment)
+* Python 3.8+
+* pip
 
 ---
 
 ## Install Dependencies
 
-Install Flask for each service:
+Install the dependencies for each service:
 
 ```bash
 pip install -r user-service/requirements.txt
@@ -52,7 +50,7 @@ pip install -r order-service/requirements.txt
 pip install -r payment-service/requirements.txt
 ```
 
-Or simply install Flask once (it covers all services):
+Since all services currently use Flask, you can also install it directly:
 
 ```bash
 pip install Flask
@@ -60,35 +58,69 @@ pip install Flask
 
 ---
 
-## Run Each Service
+## Run the Services
 
-Open **four separate terminals** and run one service in each:
+Open **four separate terminals** from the project root.
 
-**Terminal 1 — User Service:**
+### Terminal 1 — User Service
+
 ```bash
 python user-service/app.py
 ```
 
-**Terminal 2 — Product Service:**
+Runs on:
+
+```text
+http://localhost:5001
+```
+
+### Terminal 2 — Product Service
+
 ```bash
 python product-service/app.py
 ```
 
-**Terminal 3 — Order Service:**
+Runs on:
+
+```text
+http://localhost:5002
+```
+
+### Terminal 3 — Order Service
+
 ```bash
 python order-service/app.py
 ```
 
-**Terminal 4 — Payment Service:**
+Runs on:
+
+```text
+http://localhost:5003
+```
+
+### Terminal 4 — Payment Service
+
 ```bash
 python payment-service/app.py
 ```
 
+Runs on:
+
+```text
+http://localhost:5004
+```
+
 ---
 
-## Test Health Endpoints
+## Health Checks
 
-Once all services are running, verify each one is healthy:
+Each service provides a health endpoint:
+
+```text
+GET /health
+```
+
+Test them with:
 
 ```bash
 curl http://localhost:5001/health
@@ -97,23 +129,64 @@ curl http://localhost:5003/health
 curl http://localhost:5004/health
 ```
 
-Each should return:
+Example response:
 
 ```json
 {
-  "service": "<service-name>",
+  "service": "payment-service",
   "status": "healthy"
 }
 ```
 
 ---
 
-## Test API Endpoints
+## API Endpoints
+
+### User Service
+
+```text
+GET /users
+```
+
+Example:
 
 ```bash
 curl http://localhost:5001/users
+```
+
+### Product Service
+
+```text
+GET /products
+```
+
+Example:
+
+```bash
 curl http://localhost:5002/products
+```
+
+### Order Service
+
+```text
+GET /orders
+```
+
+Example:
+
+```bash
 curl http://localhost:5003/orders
+```
+
+### Payment Service
+
+```text
+GET /payments
+```
+
+Example:
+
+```bash
 curl http://localhost:5004/payments
 ```
 
@@ -121,137 +194,47 @@ curl http://localhost:5004/payments
 
 ## Project Structure
 
-```
+```text
 cloud-native-devops/
 │
 ├── user-service/
 │   ├── app.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .dockerignore
+│   └── requirements.txt
 │
 ├── product-service/
 │   ├── app.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .dockerignore
+│   └── requirements.txt
 │
 ├── order-service/
 │   ├── app.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .dockerignore
+│   └── requirements.txt
 │
 ├── payment-service/
 │   ├── app.py
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .dockerignore
+│   └── requirements.txt
 │
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## Dockerization
+## Part 1 Objective
 
-Each microservice is containerized with its own Docker image and runs as an independent container.
+The objective of Part 1 is to build and verify four independent microservices locally.
 
-### How It Works
-
-```
-Python Flask Application
-        ↓
-    Dockerfile
-        ↓
-    Docker Image
-        ↓
-    Docker Container
-```
-
-Each service has its own Dockerfile so that it can be built, deployed, and scaled independently — a core principle of microservices architecture.
-
-### Docker Images
-
-| Service         | Image Name           |
-|-----------------|----------------------|
-| user-service    | cloud-native-user    |
-| product-service | cloud-native-product |
-| order-service   | cloud-native-order   |
-| payment-service | cloud-native-payment |
-
-### Build All Images
-
-```bash
-docker build -t cloud-native-user ./user-service
-docker build -t cloud-native-product ./product-service
-docker build -t cloud-native-order ./order-service
-docker build -t cloud-native-payment ./payment-service
+```text
+Python + Flask
+      │
+      ▼
+Independent Services
+      │
+      ├── User       :5001
+      ├── Product    :5002
+      ├── Order      :5003
+      └── Payment    :5004
 ```
 
-### Run All Containers
+All services can be started and tested independently.
 
-```bash
-docker run -d --name user-service -p 5001:5001 cloud-native-user
-docker run -d --name product-service -p 5002:5002 cloud-native-product
-docker run -d --name order-service -p 5003:5003 cloud-native-order
-docker run -d --name payment-service -p 5004:5004 cloud-native-payment
-```
-
-### Port Mappings
-
-| Container       | Host Port | Container Port |
-|-----------------|-----------|----------------|
-| user-service    | 5001      | 5001           |
-| product-service | 5002      | 5002           |
-| order-service   | 5003      | 5003           |
-| payment-service | 5004      | 5004           |
-
-### Verify Running Containers
-
-```bash
-docker ps
-docker images
-```
-
-### Test Containerized APIs
-
-```bash
-curl http://localhost:5001/health
-curl http://localhost:5002/health
-curl http://localhost:5003/health
-curl http://localhost:5004/health
-
-curl http://localhost:5001/users
-curl http://localhost:5002/products
-curl http://localhost:5003/orders
-curl http://localhost:5004/payments
-```
-
-### Useful Docker Commands
-
-```bash
-# List running containers
-docker ps
-
-# List all containers (including stopped)
-docker ps -a
-
-# List images
-docker images
-
-# Stop all containers
-docker stop user-service product-service order-service payment-service
-
-# Remove all containers
-docker rm user-service product-service order-service payment-service
-
-# Remove all images
-docker rmi cloud-native-user cloud-native-product cloud-native-order cloud-native-payment
-
-# View container logs
-docker logs user-service
-docker logs product-service
-docker logs order-service
-docker logs payment-service
-```
+**Part 1 completed successfully.**
