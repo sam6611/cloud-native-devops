@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: 847283080148.dkr.ecr.ap-south-1.amazonaws.com/cloud-native-devops/order-service:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5003
+
+          env:
+            - name: SERVICE_NAME
+              value: "order-service"
+
+            - name: SERVICE_PORT
+              value: "5003"
+
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: USER_SERVICE_URL
+
+            - name: PRODUCT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PRODUCT_SERVICE_URL
+
+            - name: PAYMENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: PAYMENT_SERVICE_URL

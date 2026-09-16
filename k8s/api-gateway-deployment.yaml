@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: 847283080148.dkr.ecr.ap-south-1.amazonaws.com/cloud-native-devops/api-gateway:1.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: API_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: API_ENV

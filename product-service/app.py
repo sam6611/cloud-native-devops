@@ -1,6 +1,11 @@
+import os
 from flask import Flask, jsonify
 
 app = Flask(__name__)
+
+# Read configuration from environment variables
+SERVICE_NAME = os.getenv("SERVICE_NAME", "product-service")
+SERVICE_PORT = int(os.getenv("SERVICE_PORT", "5002"))
 
 # Hardcoded products data
 products = [
@@ -12,7 +17,10 @@ products = [
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"service": "product-service", "status": "healthy"})
+    return jsonify({
+        "service": SERVICE_NAME,
+        "status": "healthy"
+    })
 
 
 @app.route("/products", methods=["GET"])
@@ -21,4 +29,4 @@ def get_products():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002)
+    app.run(host="0.0.0.0", port=SERVICE_PORT)
