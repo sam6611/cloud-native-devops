@@ -54,3 +54,6 @@ jobs:
 
       - name: Build payment-service image
         run: docker build -t payment-service:ci ./payment-service
+
+      - name: Build api-gateway image
+        run: docker build -t api-gateway:ci ./api-gateway
