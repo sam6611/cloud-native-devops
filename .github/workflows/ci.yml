@@ -34,3 +34,23 @@ jobs:
           python -m py_compile product-service/app.py
           python -m py_compile order-service/app.py
           python -m py_compile payment-service/app.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build user-service image
+        run: docker build -t user-service:ci ./user-service
+
+      - name: Build product-service image
+        run: docker build -t product-service:ci ./product-service
+
+      - name: Build order-service image
+        run: docker build -t order-service:ci ./order-service
+
+      - name: Build payment-service image
+        run: docker build -t payment-service:ci ./payment-service
