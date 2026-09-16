@@ -1,0 +1,36 @@
+name: Cloud Native CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r user-service/requirements.txt
+          pip install -r product-service/requirements.txt
+          pip install -r order-service/requirements.txt
+          pip install -r payment-service/requirements.txt
+
+      - name: Verify Python files
+        run: |
+          python -m py_compile user-service/app.py
+          python -m py_compile product-service/app.py
+          python -m py_compile order-service/app.py
+          python -m py_compile payment-service/app.py
