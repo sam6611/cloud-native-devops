@@ -57,3 +57,53 @@ jobs:
 
       - name: Build api-gateway image
         run: docker build -t api-gateway:ci ./api-gateway
+
+      - name: Scan user-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "user-service:ci"
+          vuln-type: "os,library"
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan product-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "product-service:ci"
+          vuln-type: "os,library"
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan order-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "order-service:ci"
+          vuln-type: "os,library"
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan payment-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "payment-service:ci"
+          vuln-type: "os,library"
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan api-gateway image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "api-gateway:ci"
+          vuln-type: "os,library"
+          format: "table"
+          severity: "HIGH,CRITICAL"
+          ignore-unfixed: true
+          exit-code: "1"
