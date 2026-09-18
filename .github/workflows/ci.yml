@@ -129,4 +129,24 @@ jobs:
           ignore-unfixed: true
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
-          
+      - name: Tag images for Amazon ECR
+        env:
+          ECR_REGISTRY: 847283080148.dkr.ecr.ap-south-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag user-service:ci $ECR_REGISTRY/cloud-native-devops/user-service:$IMAGE_TAG
+          docker tag product-service:ci $ECR_REGISTRY/cloud-native-devops/product-service:$IMAGE_TAG
+          docker tag order-service:ci $ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG
+          docker tag payment-service:ci $ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG
+          docker tag api-gateway:ci $ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG
+
+      - name: Push images to Amazon ECR
+        env:
+          ECR_REGISTRY: 847283080148.dkr.ecr.ap-south-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/cloud-native-devops/user-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/cloud-native-devops/product-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG
