@@ -1,2 +1,2 @@
 Flask
-prometheus-flask-instrumentator
+prometheus-flask-exporter

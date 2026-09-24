@@ -21,7 +21,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job)",
+              "expr": "sum(rate(flask_http_request_total{job=~\"$service\"}[5m])) by (job)",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -34,7 +34,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job)",
+              "expr": "sum(rate(flask_http_request_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job)",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -47,7 +47,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "expr": "histogram_quantile(0.50, sum(rate(flask_http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -60,7 +60,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "expr": "histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -73,7 +73,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "expr": "histogram_quantile(0.99, sum(rate(flask_http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -86,37 +86,20 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job, handler, method)",
-              "legendFormat": "{{ job }} {{ method }} {{ handler }}",
+              "expr": "sum(rate(flask_http_request_total{job=~\"$service\"}[5m])) by (job, method)",
+              "legendFormat": "{{ job }} {{ method }}",
               "format": "table",
               "instant": true
             }
           ],
           "transformations": [
-            { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "job": "Service", "handler": "Endpoint", "method": "Method", "Value": "Requests/s" } } }
-          ]
-        },
-        {
-          "title": "In-Flight Requests",
-          "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "targets": [
-            {
-              "expr": "http_requests_in_progress{job=~\"$service\"}",
-              "legendFormat": "{{ job }}"
-            }
-          ],
-          "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "scheme" } }, "overrides": [] }
-        },
-        {
           "title": "Error Ratio by Service",
           "type": "gauge",
           "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job)",
+              "expr": "sum(rate(flask_http_request_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job) / sum(rate(flask_http_request_total{job=~\"$service\"}[5m])) by (job)",
               "legendFormat": "{{ job }}"
             }
           ],
@@ -139,7 +122,7 @@ data:
             "name": "service",
             "type": "query",
             "datasource": { "type": "prometheus", "uid": "prometheus" },
-            "query": "label_values(http_requests_total, job)",
+            "query": "label_values(flask_http_request_total, job)",
             "multi": true,
             "includeAll": true,
             "current": { "selected": true, "text": "All", "value": "$__all" }

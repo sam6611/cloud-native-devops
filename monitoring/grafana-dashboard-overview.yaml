@@ -43,7 +43,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total[5m]))",
+              "expr": "sum(rate(flask_http_request_total[5m]))",
               "legendFormat": "Total RPS"
             }
           ],
@@ -56,7 +56,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+              "expr": "sum(rate(flask_http_request_total{status=~\"5..\"}[5m])) / sum(rate(flask_http_request_total[5m]))",
               "legendFormat": "Error Rate"
             }
           ],

@@ -1,12 +1,12 @@
 import os
 import requests
 from flask import Flask, jsonify
-from prometheus_flask_instrumentator import Instrumentator
+from prometheus_flask_exporter import PrometheusMetrics
 
 app = Flask(__name__)
 
 # Initialize Prometheus metrics
-Instrumentator().instrument(app).expose(app)
+metrics = PrometheusMetrics(app)
 
 # Service configuration
 SERVICE_NAME = os.getenv("SERVICE_NAME", "order-service")
