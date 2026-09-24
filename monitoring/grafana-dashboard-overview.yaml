@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-app-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Service Health",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "up{job=~\"user-service|product-service|order-service|payment-service|nginx-prometheus-exporter\"}",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } }, "type": "value" }
+              ],
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+            },
+            "overrides": []
+          },
+          "options": { "graphMode": "none", "textMode": "value_and_name" }
+        },
+        {
+          "title": "Total Request Volume",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m]))",
+              "legendFormat": "Total RPS"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 }, "overrides": [] }
+        },
+        {
+          "title": "Overall Error Rate",
+          "type": "gauge",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))",
+              "legendFormat": "Error Rate"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.05 } ] }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "NGINX Gateway RPS",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(nginx_http_requests_total[5m])",
+              "legendFormat": "Gateway RPS"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 }, "overrides": [] }
+        },
+        {
+          "title": "NGINX Active Connections",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "nginx_connections_active",
+              "legendFormat": "Connections"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 } ] }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Pod Restarts (last 1h)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"default\"}[1h])",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 15 } }, "overrides": [] }
+        },
+        {
+          "title": "Pod Status",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_pod_status_phase{namespace=\"default\", phase=~\"Running|Pending|Failed\"} == 1",
+              "legendFormat": "{{ pod }} - {{ phase }}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "uid": true, "job": true, "endpoint": true, "service": true, "container": true }, "renameByName": { "pod": "Pod", "phase": "Phase", "namespace": "Namespace" } } }
+          ]
+        },
+        {
+          "title": "Container CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\", container!=\"\", container!=\"POD\"}[5m])) by (pod)",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] }
+        },
+        {
+          "title": "Container Memory Usage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"default\", container!=\"\", container!=\"POD\"}) by (pod)",
+              "legendFormat": "{{ pod }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["overview", "cloud-native-devops"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Application Overview",
+      "uid": "app-overview"
+    }

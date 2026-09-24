@@ -1,0 +1,152 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-flask
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  flask-microservices.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Request Rate by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job)",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 20, "gradientMode": "scheme" } }, "overrides": [] }
+        },
+        {
+          "title": "Error Rate (5xx) by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job)",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 20, "gradientMode": "scheme", "thresholdsStyle": { "mode": "line" } }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.05 } ] } }, "overrides": [] }
+        },
+        {
+          "title": "P50 Latency by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] }
+        },
+        {
+          "title": "P95 Latency by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] }
+        },
+        {
+          "title": "P99 Latency by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"$service\"}[5m])) by (le, job))",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [] }
+        },
+        {
+          "title": "Request Rate by Endpoint",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job, handler, method)",
+              "legendFormat": "{{ job }} {{ method }} {{ handler }}",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "job": "Service", "handler": "Endpoint", "method": "Method", "Value": "Requests/s" } } }
+          ]
+        },
+        {
+          "title": "In-Flight Requests",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "http_requests_in_progress{job=~\"$service\"}",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 15, "gradientMode": "scheme" } }, "overrides": [] }
+        },
+        {
+          "title": "Error Ratio by Service",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{job=~\"$service\", status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total{job=~\"$service\"}[5m])) by (job)",
+              "legendFormat": "{{ job }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.05 } ] }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["flask", "microservices", "cloud-native-devops"],
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_requests_total, job)",
+            "multi": true,
+            "includeAll": true,
+            "current": { "selected": true, "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Flask Microservices",
+      "uid": "flask-microservices"
+    }

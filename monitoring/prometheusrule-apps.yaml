@@ -1,0 +1,98 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: app-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: cloud-native-devops
+spec:
+  groups:
+    - name: nginx-alerts
+      rules:
+        - alert: NginxDown
+          expr: nginx_up == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: api-gateway
+          annotations:
+            summary: "NGINX API Gateway is down"
+            description: "The NGINX Prometheus exporter reports that NGINX is unreachable for more than 1 minute."
+
+        - alert: NginxHighActiveConnections
+          expr: nginx_connections_active > 100
+          for: 5m
+          labels:
+            severity: warning
+            service: api-gateway
+          annotations:
+            summary: "NGINX has high active connections"
+            description: "NGINX has {{ $value }} active connections, which exceeds the threshold of 100."
+
+        - alert: NginxDroppedConnections
+          expr: rate(nginx_connections_accepted[5m]) - rate(nginx_connections_handled[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            service: api-gateway
+          annotations:
+            summary: "NGINX is dropping connections"
+            description: "NGINX is not handling all accepted connections. Dropped rate: {{ $value }}/s."
+
+    - name: flask-service-alerts
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            (
+              sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+              /
+              sum(rate(http_requests_total[5m])) by (job)
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High error rate on {{ $labels.job }}"
+            description: "Service {{ $labels.job }} has an error rate of {{ $value | humanizePercentage }} (threshold: 5%)."
+
+        - alert: HighLatencyP95
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High P95 latency on {{ $labels.job }}"
+            description: "Service {{ $labels.job }} P95 latency is {{ $value }}s (threshold: 1s)."
+
+        - alert: ServiceDown
+          expr: up{job=~"user-service|product-service|order-service|payment-service"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service {{ $labels.job }} is down"
+            description: "Prometheus target {{ $labels.job }} has been unreachable for more than 1 minute."
+
+    - name: pod-alerts
+      rules:
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{namespace="default"}[15m]) * 60 * 15 > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes."
+
+        - alert: PodImagePullBackOff
+          expr: kube_pod_container_status_waiting_reason{reason="ImagePullBackOff", namespace="default"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} has ImagePullBackOff"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} cannot pull its container image."

@@ -1,7 +1,11 @@
 import os
 from flask import Flask, jsonify
+from prometheus_flask_instrumentator import Instrumentator
 
 app = Flask(__name__)
+
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 # Read configuration from environment variables
 SERVICE_NAME = os.getenv("SERVICE_NAME", "product-service")
