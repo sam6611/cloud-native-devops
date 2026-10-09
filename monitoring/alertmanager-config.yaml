@@ -1,0 +1,161 @@
+# Alertmanager configuration for the cloud-native-devops monitoring stack.
+#
+# This ConfigMap is picked up by kube-prometheus-stack's Alertmanager when:
+#   alertmanager.alertmanagerSpec.configSecret is set to this secret name, OR
+#   the kube-prometheus-stack chart's alertmanager.config value is overridden.
+#
+# HOW TO DEPLOY
+# ─────────────
+# 1. Edit this file — replace every value wrapped in <angle-brackets> with your
+#    real credentials. NEVER commit real credentials to Git.
+#
+# 2. Apply the config as a Kubernetes Secret (Alertmanager reads a secret, not
+#    a ConfigMap, for its main config):
+#
+#   kubectl create secret generic alertmanager-kube-prometheus-stack-alertmanager \
+#     --from-file=alertmanager.yaml=monitoring/alertmanager-config.yaml \
+#     -n monitoring --dry-run=client -o yaml | kubectl apply -f -
+#
+# 3. Verify Alertmanager loaded the new config:
+#   kubectl -n monitoring port-forward svc/kube-prometheus-stack-alertmanager 9093:9093
+#   Then open: http://localhost:9093/#/status
+#   The "Config" tab shows the active configuration.
+#
+# 4. Test alert delivery by creating a test alert:
+#   curl -X POST http://localhost:9093/api/v2/alerts \
+#     -H 'Content-Type: application/json' \
+#     -d '[{"labels":{"alertname":"TestAlert","severity":"warning"}}]'
+#   Verify the notification arrives in your Slack channel or email inbox.
+#
+# REQUIRED CREDENTIALS (keep out of Git)
+# ───────────────────────────────────────
+# Slack:  A Slack Incoming Webhook URL.
+#         Create one at: https://api.slack.com/messaging/webhooks
+#         Format: https://hooks.slack.com/services/T.../B.../...
+#
+# Email:  SMTP relay credentials (host, port, username, password).
+#         For Gmail: use an App Password (not your account password).
+#         Enable "Less secure app access" or prefer a dedicated SMTP relay.
+#
+# PRODUCTION NOTE
+# ───────────────
+# Store credentials in AWS Secrets Manager and inject them at deploy time using
+# the External Secrets Operator, rather than putting them in this file directly.
+
+global:
+  # How long to wait before re-sending a firing alert that has already been sent.
+  resolve_timeout: 5m
+
+  # Default SMTP settings (used by 'email' receivers below).
+  # Replace with your real SMTP relay details.
+  smtp_smarthost: "<smtp-host>:<smtp-port>"
+  smtp_from: "<sender@example.com>"
+  smtp_auth_username: "<smtp-username>"
+  smtp_auth_password: "<smtp-password>"
+  smtp_require_tls: true
+
+# ─── Routing ──────────────────────────────────────────────────────────────────
+# Traffic flows from the root route down through child routes.
+# The first matching child route wins.
+route:
+  # Group alerts that share these labels into a single notification.
+  group_by: ["alertname", "severity", "service"]
+
+  # Wait this long after the first alert in a group before sending the first notification.
+  # Allows additional alerts in the same group to arrive and be batched together.
+  group_wait: 30s
+
+  # How long to wait before sending a notification for a new group of alerts
+  # after the initial notification has been sent.
+  group_interval: 5m
+
+  # How long to wait before re-notifying that a group of alerts is still firing.
+  repeat_interval: 4h
+
+  # Default receiver — gets anything that does not match a child route.
+  receiver: "slack-warnings"
+
+  routes:
+    # Critical alerts → Slack critical channel AND email (continue:true allows both).
+    - matchers:
+        - severity = "critical"
+      receiver: "slack-critical"
+      continue: true
+
+    # Warning alerts → Slack warning channel.
+    - matchers:
+        - severity = "warning"
+      receiver: "slack-warnings"
+      continue: false
+
+    # All critical alerts also page on-call via email.
+    - matchers:
+        - severity = "critical"
+      receiver: "email-oncall"
+      continue: false
+
+# ─── Inhibition rules ─────────────────────────────────────────────────────────
+# Suppress warning-level alerts for a service when a critical alert is already
+# firing for the same service, to reduce alert noise.
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["service"]
+
+# ─── Receivers ────────────────────────────────────────────────────────────────
+receivers:
+  # Slack channel for critical alerts.
+  # Replace the webhook URL with your actual Incoming Webhook URL.
+  - name: "slack-critical"
+    slack_configs:
+      - api_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+        channel: "#alerts-critical"
+        username: "Alertmanager"
+        icon_emoji: ":fire:"
+        send_resolved: true
+        title: '{{ template "slack.default.title" . }}'
+        text: >-
+          {{ range .Alerts -}}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Service:* {{ .Labels.service | default "n/a" }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+
+  # Slack channel for warning alerts.
+  - name: "slack-warnings"
+    slack_configs:
+      - api_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+        channel: "#alerts-warnings"
+        username: "Alertmanager"
+        icon_emoji: ":warning:"
+        send_resolved: true
+        title: '{{ template "slack.default.title" . }}'
+        text: >-
+          {{ range .Alerts -}}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Summary:* {{ .Annotations.summary }}
+          {{ end }}
+
+  # Email receiver for critical alerts — on-call escalation.
+  - name: "email-oncall"
+    email_configs:
+      - to: "<oncall@example.com>"
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} — cloud-native-devops'
+        html: |
+          <h2>{{ .GroupLabels.alertname }}</h2>
+          <ul>
+          {{ range .Alerts }}
+            <li>
+              <strong>{{ .Labels.alertname }}</strong> ({{ .Labels.severity }})<br/>
+              {{ .Annotations.summary }}<br/>
+              <em>{{ .Annotations.description }}</em>
+            </li>
+          {{ end }}
+          </ul>
