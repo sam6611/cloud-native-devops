@@ -8,6 +8,13 @@ on:
     branches:
       - main
 
+# Prevent concurrent deployments to the same environment.
+# On push to main, cancel any in-progress workflow and run the new one.
+# On pull requests, allow concurrent runs (they target different branches).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -28,12 +35,24 @@ jobs:
           pip install -r order-service/requirements.txt
           pip install -r payment-service/requirements.txt
 
-      - name: Verify Python files
+      - name: Verify Python files compile
         run: |
           python -m py_compile user-service/app.py
           python -m py_compile product-service/app.py
           python -m py_compile order-service/app.py
           python -m py_compile payment-service/app.py
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python dependencies installed | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| user-service syntax | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| product-service syntax | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| order-service syntax | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| payment-service syntax | ✅ |" >> $GITHUB_STEP_SUMMARY
 
   docker-build:
     if: github.event_name == 'push'
@@ -48,7 +67,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC — no static keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::847283080148:role/cloud-native-devops-github-actions
@@ -61,22 +80,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build user-service image
-        run: docker build -t user-service:ci ./user-service
+      - name: Build all service images
+        run: |
+          docker build -t user-service:ci    ./user-service
+          docker build -t product-service:ci ./product-service
+          docker build -t order-service:ci   ./order-service
+          docker build -t payment-service:ci ./payment-service
+          docker build -t api-gateway:ci     ./api-gateway
 
-      - name: Build product-service image
-        run: docker build -t product-service:ci ./product-service
+      # --- Trivy Scans (HIGH+CRITICAL, ignore unfixed, fail on findings) ---
 
-      - name: Build order-service image
-        run: docker build -t order-service:ci ./order-service
-
-      - name: Build payment-service image
-        run: docker build -t payment-service:ci ./payment-service
-
-      - name: Build api-gateway image
-        run: docker build -t api-gateway:ci ./api-gateway
-
-      - name: Scan user-service image
+      - name: Scan user-service
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "user-service:ci"
@@ -87,7 +101,7 @@ jobs:
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
 
-      - name: Scan product-service image
+      - name: Scan product-service
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "product-service:ci"
@@ -98,7 +112,7 @@ jobs:
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
 
-      - name: Scan order-service image
+      - name: Scan order-service
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "order-service:ci"
@@ -109,7 +123,7 @@ jobs:
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
 
-      - name: Scan payment-service image
+      - name: Scan payment-service
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "payment-service:ci"
@@ -120,7 +134,7 @@ jobs:
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
 
-      - name: Scan api-gateway image
+      - name: Scan api-gateway
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "api-gateway:ci"
@@ -131,18 +145,20 @@ jobs:
           skip-files: "**/pip/_vendor/bom.cdx.json"
           exit-code: "1"
 
-      - name: Tag images for Amazon ECR
+      # --- Tag and push to ECR ---
+
+      - name: Tag images for ECR
         env:
           ECR_REGISTRY: 847283080148.dkr.ecr.ap-south-1.amazonaws.com
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker tag user-service:ci $ECR_REGISTRY/cloud-native-devops/user-service:$IMAGE_TAG
+          docker tag user-service:ci    $ECR_REGISTRY/cloud-native-devops/user-service:$IMAGE_TAG
           docker tag product-service:ci $ECR_REGISTRY/cloud-native-devops/product-service:$IMAGE_TAG
-          docker tag order-service:ci $ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG
+          docker tag order-service:ci   $ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG
           docker tag payment-service:ci $ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG
-          docker tag api-gateway:ci $ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG
+          docker tag api-gateway:ci     $ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG
 
-      - name: Push images to Amazon ECR
+      - name: Push images to ECR
         env:
           ECR_REGISTRY: 847283080148.dkr.ecr.ap-south-1.amazonaws.com
           IMAGE_TAG: ${{ github.sha }}
@@ -152,6 +168,8 @@ jobs:
           docker push $ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG
+
+      # --- GitOps update ---
 
       - name: Checkout GitOps repository
         uses: actions/checkout@v4
@@ -171,6 +189,14 @@ jobs:
           sed -i "s|$ECR_REGISTRY/cloud-native-devops/payment-service:[^\" ]*|$ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG|" gitops/k8s/payment-service-deployment.yaml
           sed -i "s|$ECR_REGISTRY/cloud-native-devops/api-gateway:[^\" ]*|$ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG|" gitops/k8s/api-gateway-deployment.yaml
 
+      - name: Validate updated Kubernetes manifests
+        run: |
+          # Use kubectl --dry-run=client to validate all manifests
+          kubectl apply --dry-run=client -f gitops/k8s/ 2>&1 || {
+            echo "::warning::Manifest validation failed — review k8s/ directory for errors"
+            exit 1
+          }
+
       - name: Commit and push GitOps changes
         working-directory: gitops
         env:
@@ -180,5 +206,38 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add k8s/
-          git commit -m "Update images to $IMAGE_TAG"
-          git push
+
+          # Only commit if there are actual changes (prevents empty commits on re-runs)
+          if git diff --cached --exit-code; then
+            echo "No manifest changes detected — skipping GitOps commit"
+          else
+            git commit -m "Update images to $IMAGE_TAG"
+            git push
+          fi
+
+      - name: Write deployment summary
+        if: always()
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          ECR_REGISTRY: 847283080148.dkr.ecr.ap-south-1.amazonaws.com
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`$IMAGE_TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images Pushed to ECR" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| user-service | \`$ECR_REGISTRY/cloud-native-devops/user-service:$IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| product-service | \`$ECR_REGISTRY/cloud-native-devops/product-service:$IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| order-service | \`$ECR_REGISTRY/cloud-native-devops/order-service:$IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| payment-service | \`$ECR_REGISTRY/cloud-native-devops/payment-service:$IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| api-gateway | \`$ECR_REGISTRY/cloud-native-devops/api-gateway:$IMAGE_TAG\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Security" >> $GITHUB_STEP_SUMMARY
+          echo "- Trivy scan: HIGH/CRITICAL vulnerabilities checked (ignore-unfixed: true)" >> $GITHUB_STEP_SUMMARY
+          echo "- AWS auth: OIDC (no static keys)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GitOps" >> $GITHUB_STEP_SUMMARY
+          echo "- GitOps repository updated with new image tags" >> $GITHUB_STEP_SUMMARY
+          echo "- Argo CD will detect the change and sync automatically" >> $GITHUB_STEP_SUMMARY

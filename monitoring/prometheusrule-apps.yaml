@@ -80,13 +80,13 @@ spec:
     - name: pod-alerts
       rules:
         - alert: PodCrashLooping
-          expr: rate(kube_pod_container_status_restarts_total{namespace="default"}[15m]) * 60 * 15 > 0
+          expr: rate(kube_pod_container_status_restarts_total{namespace="default"}[15m]) * 60 * 15 > 3
           for: 5m
           labels:
             severity: critical
           annotations:
-            summary: "Pod {{ $labels.pod }} is crash-looping"
-            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has restarted {{ $value }} times in the last 15 minutes."
+            summary: "Pod {{ $labels.pod }} may be crash-looping"
+            description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has restarted more than 3 times in the last 15 minutes (current rate: {{ $value | printf \"%.1f\" }} restarts). Inspect with: kubectl describe pod {{ $labels.pod }} -n {{ $labels.namespace }}"
 
         - alert: PodImagePullBackOff
           expr: kube_pod_container_status_waiting_reason{reason="ImagePullBackOff", namespace="default"} > 0
